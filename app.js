@@ -9,6 +9,8 @@ var CCI_routes = require('./routes/cci');
 //Usaremos el body parser para que todo lo que llegue o se envíe, se transforme a JSON
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+const cors = require('cors');
+app.use(cors());
 //Configuración de Cabeceras
 app.use((req, res, next) => {
     //Access-Control-Allow-Origin: especifica el origen que está permitido acceder a la API
