@@ -134,40 +134,43 @@ var controller = {
 
     uploadImagen: function (req, res) {
         var tiendaId = req.params.id;
-        var fileName = 'Imagen no subida... SAPO'
+        var fileName = 'Imagen no subida... SAPO';
 
-        if (req.files) {
-            var filePath = req.files.imagen.path;
-            var file_split = filePath.split('\\');
-            var fileName = file_split[file_split.length - 1];
+        // Validar que exista la carga y el campo 'imagen'
+        if (!req.files || !req.files.imagen) {
+            return res.status(400).send({ message: 'No se ha subido ninguna imagen' });
+        }
 
-            var extSplit = fileName.split('\.');
-            var fileExt = extSplit[extSplit.length - 1];
+        // Soportar tanto objeto como array (dependiendo del middleware)
+        var fileObj = Array.isArray(req.files.imagen) ? req.files.imagen[0] : req.files.imagen;
+        var filePath = fileObj.path;
+        var fileName = path.basename(filePath);
+        var fileExt = path.extname(fileName).replace('.', '').toLowerCase();
 
-            if (fileExt == 'png' || fileExt == 'jpg' || fileExt == 'jpeg' || fileExt == 'gif') {
-                Tienda.findByIdAndUpdate(tiendaId, { imagen: fileName }, { new: true })
-                    .then(tiendaActualizar => {
-                        if (!tiendaActualizar) {
-                            fs.unlink(filePath, (unlinkErr) => {
-                                return res.status(404).send({ message: 'El producto no existe y no se subió la imagen' });
-                            });
-                        } else {
-                            return res.status(200).send({ tienda: tiendaActualizar });
-                        }
-                    })
-
-                    .catch(err => {
+        if (['png', 'jpg', 'jpeg', 'gif'].includes(fileExt)) {
+            Tienda.findByIdAndUpdate(tiendaId, { imagen: fileName }, { new: true })
+                .then(tiendaActualizar => {
+                    if (!tiendaActualizar) {
                         fs.unlink(filePath, (unlinkErr) => {
-                            if (unlinkErr) console.error('Error al eliminar el archivo temporal', unlinkErr);
-                            if (err.name === 'CastError') {
-                                return res.status(404).send({ message: 'Formato de ID no válido para subir la imagen' });
-                            }
-                            return res.status(500).send({ message: 'Error al subir la imagen o actualizar el producto', error: err });
-                        })
+                            return res.status(404).send({ message: 'El producto no existe y no se subió la imagen' });
+                        });
+                    } else {
+                        return res.status(200).send({ tienda: tiendaActualizar });
+                    }
+                })
+                .catch(err => {
+                    fs.unlink(filePath, (unlinkErr) => {
+                        if (unlinkErr) console.error('Error al eliminar el archivo temporal', unlinkErr);
+                        if (err.name === 'CastError') {
+                            return res.status(404).send({ message: 'Formato de ID no válido para subir la imagen' });
+                        }
+                        return res.status(500).send({ message: 'Error al subir la imagen o actualizar el producto', error: err });
                     })
-            } else {
-                return res.status(400).send({ message: 'No se ha subido ninguna imagen' });
-            }
+                })
+        } else {
+            // Extensión inválida: eliminar archivo temporal y responder
+            fs.unlink(filePath, () => { });
+            return res.status(400).send({ message: 'Extensión de archivo no válida' });
         }
     },
 
